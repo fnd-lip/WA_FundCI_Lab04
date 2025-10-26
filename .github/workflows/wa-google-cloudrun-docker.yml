@@ -37,36 +37,25 @@ jobs:
           dockerfile: ./Dockerfile   # Specify the path to your Dockerfile here
           tags: felipebarbosadelima/webacademy:latest
   deploy:
-    needs: lint
+    needs: build_docker
     name: Setup Gcloud Account
     runs-on: ubuntu-latest
     environment: wagcp_deploy
-    env:
-      IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/webacademy:latest
+
     steps:
       # Git checkout
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Login to GCP
-      - name: LoginCCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      # gcloud configure docker
-      - name: Configure Docker
-        run: gcloud auth configure-docker --quiet
-
-      # build image
-      - name: Build Docker image
-        run: docker build -t $IMAGE_NAME .
-
-      # push image to registry
-      - name: Push Docker image
-        run: docker push $IMAGE_NAME
-
-      # deploy image
-      - name: Deploy Docker image
-        run: gcloud run deploy wacicd --image $IMAGE_NAME --region us-west1 --memory 128Mi --min-instances 0 --max-instances 1 --platform managed --port 8080 --allow-unauthenticated
+      # deploy para o Render
+      - name: Trigger deploy on Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          echo "Iniciando deploy no Render..."
+          curl -X POST "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json"
+          echo " deploy disparado com sucesso no Render!"
